@@ -42,19 +42,58 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <fcntl.h>
 
 //Project files
+#include "processor.h"
+#include "Channel.h"
+#include "Identify.h"
 #include "Sound.h"
-#include "FPad.h"
-#include "state.h"
-#include "NAND.h"
+#include "Music.h"
 #include "Config.h"
+#include "FPad.h"
+#include "dol.h"
+#include "NAND.h"
+#include "state.h"
+#include "WAD.h"
+#include "SaveFile.h"
+
+//#define DEBUG
+//#define NETWORK_DEBUG
+//#define CONSOLE
+
 
 extern "C"
 {
+	#include "Patches.h"
+	#include "sha1.h"
+	#include "di.h"
+	#include "Game.h"
 	#include "misc.h"
+	#include "Loader_bin.h"
+	extern void _unstub_start(void);
 }
 
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
+
+extern char *AreaStr[];
+extern char *GameRegionStr[];
+extern char *VideoStr[];
+extern WiimoteNames WiimoteName[];
+extern u32 Playing;
+extern char TagInfo[1024];
+extern s32 __IOS_ShutdownSubsystems();
+extern vs32 GameReady;
+extern vs32 DiscError;
+extern char *GameTitle;
+extern u32 MusicStatus;
+extern vs32 CoverGame;
+
+extern std::vector<char*> *ChannelNames;
+extern std::vector<char*> Names;
+
+Channel *Chans;
+lwp_t GameThread;
+u32 Shutdown=0;
+u32 Reset=0;
 
 s32 __IOS_LoadStartupIOS(void)
 {
@@ -67,8 +106,6 @@ s32 __IOS_LoadStartupIOS(void)
 	//	return res;
 	return 0;
 }
-u32 Shutdown=0;
-u32 Reset=0;
 void HandleWiiMoteEvent(s32 chan)
 {
 	Shutdown=1;
@@ -186,6 +223,10 @@ int main(int argc, char **argv)
 	WPAD_SetPowerButtonCallback(HandleWiiMoteEvent);
 	gprintf("System:WPAD_SetPowerButtonCallback()\n");
 
+	gprintf("System:Creating disc thread...");
+	LWP_CreateThread( &GameThread, LoadGame, NULL, NULL, NULL, 5);	
+	gprintf("ok\n");
+
 	r = FPad_LoadMapping();
 	gprintf("System:FPad_LoadMapping():%d\n", r);
 	
@@ -197,6 +238,32 @@ int main(int argc, char **argv)
 
 	STM_RegisterEventHandler(HandleSTMEvent);
 	gprintf("System:STM_RegisterEventHandler()\n");
+
+	Chans = new Channel;
+
+	gprintf("Channel:Caching names...");
+	if( ChannelNames == NULL )
+	{
+		ChannelNames = new std::vector<char*>;
+
+		for( u32 i=0; i < Chans->GetCount(); ++i)
+		{
+			ChannelNames->resize( ChannelNames->size() + 1 );
+			char *s=Chans->GetName( i );
+			if( s == NULL )
+			{
+				s = strdup("No Name");
+			} else if( s[0] == '\0' )
+			{
+				s = strdup("No Name");
+			}
+			(*ChannelNames)[ChannelNames->size()-1] = s;
+			//gprintf("Name:\"%s\"\n", (*ChannelNames)[ChannelNames->size()-1] );
+		}
+	}
+
+	gprintf("ok\n");
+
 
 	while(1)
 	{

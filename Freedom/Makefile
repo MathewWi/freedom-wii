@@ -17,7 +17,7 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/tremor source/libwbfs
+SOURCES		:=	source source/tremor
 DATA		:=	data  
 INCLUDES	:=  include
 
@@ -34,7 +34,7 @@ LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map -Wl,--section-start,.init=0x80
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:=	-lasnd -lwiisprite -lpng -lz -lwiiuse -lbte -lfat -logc -lm 
+LIBS	:=	-lasnd -lz -lwiiuse -lbte -lfat -logc -lm 
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
